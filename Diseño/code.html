@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Settings - The Monolith</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#191c1e",
+                        "primary-container": "#2563eb",
+                        "on-primary-container": "#eeefff",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f2f4f6",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-tertiary-fixed": "#002113",
+                        "surface-container-highest": "#e0e3e5",
+                        "secondary-container": "#dae2fd",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#434655",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "on-secondary-container": "#5c647a",
+                        "outline": "#737686",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "surface-tint": "#0053db",
+                        "on-background": "#191c1e",
+                        "surface-dim": "#d8dadc",
+                        "on-tertiary-container": "#bdffdb",
+                        "tertiary": "#006242",
+                        "surface-bright": "#f7f9fb",
+                        "surface-container": "#eceef0",
+                        "surface-variant": "#e0e3e5",
+                        "inverse-primary": "#b4c5ff",
+                        "on-secondary-fixed": "#131b2e",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#6ffbbe",
+                        "inverse-surface": "#2d3133",
+                        "surface": "#f7f9fb",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e6e8ea",
+                        "on-primary-fixed": "#00174b",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "on-tertiary": "#ffffff",
+                        "background": "#f7f9fb",
+                        "secondary-fixed": "#dae2fd",
+                        "primary": "#004ac6",
+                        "primary-fixed": "#dbe1ff",
+                        "inverse-on-surface": "#eff1f3",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#007d55",
+                        "outline-variant": "#c3c6d7",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "secondary": "#565e74"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .monolith-sidebar { background-color: #131b2e; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex">
+<!-- SideNavBar (The Monolith) -->
+<aside class="fixed left-0 top-0 h-screen w-[240px] bg-[#131b2e] dark:bg-[#0a0f1d] flex flex-col py-6 px-4 z-50">
+<div class="mb-10 px-2">
+<h1 class="text-xl font-black text-white tracking-tight">The Monolith</h1>
+<p class="text-[0.75rem] text-slate-400 font-medium">AI Email Manager</p>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="inbox">inbox</span>
+<span class="font-medium text-sm">Inbox</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white transition-colors hover:bg-white/5 rounded-lg group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="send">send</span>
+<span class="font-medium text-sm">Sent</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-white/10 text-white rounded-lg transition-colors group" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="settings">settings</span>
+<span class="font-medium text-sm">Settings</span>
+</a>
+</nav>
+<div class="mt-auto space-y-4 px-2">
+<button class="w-full py-2.5 px-4 bg-gradient-to-br from-primary to-primary-container text-white text-sm font-bold rounded-xl shadow-lg transition-transform active:scale-95">
+                New Response
+            </button>
+<div class="pt-6 border-t border-white/10 space-y-2">
+<a class="flex items-center gap-3 py-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="account_circle">account_circle</span>
+<span class="text-sm">User Profile</span>
+</a>
+<a class="flex items-center gap-3 py-2 text-slate-400 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="logout">logout</span>
+<span class="text-sm">Logout</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Canvas Area -->
+<main class="ml-[240px] flex-1 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 bg-[#f7f9fb]/80 dark:bg-[#131b2e]/80 backdrop-blur-md z-40 flex justify-between items-center px-8">
+<div class="flex items-center gap-6">
+<span class="text-lg font-bold text-slate-900 dark:text-white">MusicDibs</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-500 dark:text-slate-400 hover:text-blue-500 transition-colors text-sm font-bold" href="#">Pending</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-blue-500 transition-colors text-sm font-bold" href="#">Sent</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined text-slate-500 cursor-pointer p-2 hover:bg-surface-container-high rounded-full transition-colors" data-icon="notifications">notifications</span>
+</div>
+<span class="material-symbols-outlined text-slate-500 cursor-pointer p-2 hover:bg-surface-container-high rounded-full transition-colors" data-icon="help">help</span>
+<div class="h-8 w-8 rounded-full bg-surface-container-highest overflow-hidden ring-2 ring-white shadow-sm">
+<img class="h-full w-full object-cover" data-alt="close up professional headshot of a creative director in a minimalist studio setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD95BxdNZ0gUUdAlvyigrUzMx8LLAq7r_SkqxxaI6zH_sqK6gYyVyJpAHImERrXPU6WECt4TEGEg_NeX2dZ7yR89FjLPrKOFFxDrFkdgaIbfznvam7tRO4u7vFohaZlJmgJD3GgyHXK4-HobPXfIULmXi_fF8bQq0kHeklAj48_k9QNOBKAhGKMixPJOXraaEHb-U7zNbBKQFCzeaBelEdyqgiaIvsj-7BPwAF4puIPOK8Fy-yDIm6wkzEebyl5IrYr5aEFWB9slWg"/>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="mt-16 p-10 max-w-6xl mx-auto w-full space-y-10">
+<header>
+<h2 class="text-3xl font-extrabold tracking-tight text-on-surface mb-2">System Architecture</h2>
+<p class="text-on-surface-variant max-w-2xl">Manage your AI deployment configurations, active projects, and secure email server connections from this central hub.</p>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Section 1: Projects (Bento Large) -->
+<section class="lg:col-span-2 bg-surface-container-lowest p-8 rounded-xl ring-1 ring-outline-variant/15 flex flex-col">
+<div class="flex justify-between items-center mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="folder_managed">folder_managed</span>
+<h3 class="text-xl font-bold">Active Projects</h3>
+</div>
+<button class="text-primary text-sm font-semibold hover:underline">Add Project</button>
+</div>
+<div class="space-y-4">
+<!-- Project Card 1 -->
+<div class="group flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-surface-container-low">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-secondary-container rounded-lg flex items-center justify-center text-on-secondary-container font-black text-lg">M</div>
+<div>
+<h4 class="font-bold text-on-surface">MusicDibs</h4>
+<p class="text-sm text-on-surface-variant">contact@musicdibs.app</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant text-[0.7rem] font-bold rounded-full">ACTIVE</span>
+<span class="material-symbols-outlined text-outline cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" data-icon="more_vert">more_vert</span>
+</div>
+</div>
+<!-- Project Card 2 -->
+<div class="group flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-surface-container-low">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-surface-container-highest rounded-lg flex items-center justify-center text-on-surface-variant font-black text-lg">P</div>
+<div>
+<h4 class="font-bold text-on-surface">Privaro</h4>
+<p class="text-sm text-on-surface-variant">support@privaro.io</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="px-3 py-1 bg-surface-container-high text-on-surface-variant text-[0.7rem] font-bold rounded-full">INACTIVE</span>
+<span class="material-symbols-outlined text-outline cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" data-icon="more_vert">more_vert</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: AI Configuration (Bento Sidebar) -->
+<section class="bg-[#131b2e] text-white p-8 rounded-xl flex flex-col shadow-2xl">
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-tertiary-fixed" data-icon="psychology">psychology</span>
+<h3 class="text-xl font-bold">AI Core</h3>
+</div>
+<div class="space-y-8 flex-1">
+<div>
+<label class="block text-[0.7rem] font-bold uppercase tracking-widest text-slate-400 mb-2">Active Intelligence Model</label>
+<div class="bg-white/5 p-4 rounded-xl border border-white/10 flex items-center justify-between">
+<span class="font-medium">Claude 3.5 Sonnet</span>
+<span class="material-symbols-outlined text-slate-400" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<div class="p-6 bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl border border-white/5">
+<div class="flex items-center justify-between mb-4">
+<span class="text-sm font-medium">API Connection</span>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+<span class="text-[0.7rem] font-bold text-emerald-400">OPERATIONAL</span>
+</div>
+</div>
+<div class="space-y-2">
+<div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+<div class="h-full w-[94%] bg-emerald-400 rounded-full"></div>
+</div>
+<div class="flex justify-between text-[0.65rem] text-slate-500 font-medium">
+<span>Latency: 240ms</span>
+<span>Uptime: 99.9%</span>
+</div>
+</div>
+</div>
+</div>
+<button class="mt-8 py-3 w-full bg-white/10 hover:bg-white/15 text-white text-sm font-bold rounded-xl transition-colors">
+                        View Tokens Usage
+                    </button>
+</section>
+<!-- Section 2: Email Server (Full Width Bottom Grid) -->
+<section class="lg:col-span-3 bg-surface-container-low p-8 rounded-xl">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="dns">dns</span>
+<div>
+<h3 class="text-xl font-bold">Email Server Configuration</h3>
+<p class="text-sm text-on-surface-variant">Secure IMAP/SMTP bridge for message synchronization</p>
+</div>
+</div>
+<button class="px-6 py-2.5 bg-surface-container-lowest text-on-surface text-sm font-bold rounded-xl ring-1 ring-outline-variant/30 hover:bg-white transition-all shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-base" data-icon="edit">edit</span>
+                            Edit Credentials
+                        </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+<label class="block text-[0.7rem] font-bold text-on-surface-variant uppercase tracking-wider mb-2">IMAP Host</label>
+<p class="font-mono text-sm text-on-surface">imap.musicdibs.app</p>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+<label class="block text-[0.7rem] font-bold text-on-surface-variant uppercase tracking-wider mb-2">SMTP Host</label>
+<p class="font-mono text-sm text-on-surface">smtp.musicdibs.app</p>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+<label class="block text-[0.7rem] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Username</label>
+<p class="font-mono text-sm text-on-surface">contact_auth_secure</p>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/10">
+<label class="block text-[0.7rem] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Password</label>
+<div class="flex items-center justify-between">
+<p class="font-mono text-sm text-on-surface">••••••••••••••••</p>
+<span class="material-symbols-outlined text-outline text-sm cursor-pointer" data-icon="visibility">visibility</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Additional Professional Settings Sections -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 pb-10">
+<div class="p-8 rounded-xl bg-surface-container-lowest ring-1 ring-outline-variant/10 group cursor-pointer hover:shadow-xl hover:shadow-primary/5 transition-all">
+<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center text-primary mb-6">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+</div>
+<h4 class="text-lg font-bold mb-2">Data &amp; Privacy</h4>
+<p class="text-on-surface-variant text-sm mb-6">Manage how your email data is processed and stored for AI training models.</p>
+<div class="flex items-center gap-2 text-primary font-bold text-sm">
+<span>Configure policies</span>
+<span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</div>
+</div>
+<div class="p-8 rounded-xl bg-surface-container-lowest ring-1 ring-outline-variant/10 group cursor-pointer hover:shadow-xl hover:shadow-secondary/5 transition-all">
+<div class="w-12 h-12 bg-secondary-fixed rounded-xl flex items-center justify-center text-secondary mb-6">
+<span class="material-symbols-outlined" data-icon="notifications_active">notifications_active</span>
+</div>
+<h4 class="text-lg font-bold mb-2">Notification Routing</h4>
+<p class="text-on-surface-variant text-sm mb-6">Set up webhooks and Slack integrations for critical AI response triggers.</p>
+<div class="flex items-center gap-2 text-secondary font-bold text-sm">
+<span>Integrate webhooks</span>
+<span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>
