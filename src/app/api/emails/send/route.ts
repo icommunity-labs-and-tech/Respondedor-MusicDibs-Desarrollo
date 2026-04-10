@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/smtp";
+import { appendKnowledgeEntry } from "@/lib/ai/context-loader";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -98,6 +99,14 @@ export async function POST(request: NextRequest) {
       .from("emails")
       .update({ status: "sent" })
       .eq("id", emailId);
+
+    // 5. Append Q&A to dynamic knowledge base (non-blocking)
+    const emailBody = email.body_text || email.body_html?.replace(/<[^>]*>/g, " ") || "";
+    appendKnowledgeEntry({
+      projectId: email.project_id,
+      question: emailBody,
+      answer: content,
+    }).catch(() => { /* non-fatal */ });
 
     return NextResponse.json({
       message: "Email sent successfully",

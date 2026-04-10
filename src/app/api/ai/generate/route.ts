@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Load project context from .md file
-    const context = await loadProjectContext(project.context_file);
+    // 2. Load project context: static .md + dynamic Supabase Q&A entries
+    const context = await loadProjectContext(project.context_file, project.id);
 
     // 3. Generate AI response
     const emailBody = email.body_text || email.body_html || "(Sin contenido)";
