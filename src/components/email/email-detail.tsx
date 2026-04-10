@@ -1,16 +1,70 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { EmailWithDraft } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
+import type { EmailWithDraft, ThreadMessage } from "@/types/database";
 import DraftEditor from "./draft-editor";
+import ThreadView from "./thread-view";
 
 interface EmailDetailProps {
   email: EmailWithDraft;
   onSendSuccess: () => void;
+  onDraftGenerated: () => void;
+  onArchive: () => void;
 }
 
-export default function EmailDetail({ email, onSendSuccess }: EmailDetailProps) {
-  const [showOriginal, setShowOriginal] = useState(true);
+export default function EmailDetail({ email, onSendSuccess, onDraftGenerated, onArchive }: EmailDetailProps) {
+  const [showThread, setShowThread] = useState(true);
+  const [thread, setThread] = useState<ThreadMessage[]>([]);
+  const [archiving, setArchiving] = useState(false);
+  const supabase = createClient();
+
+  async function handleArchive() {
+    if (archiving) return;
+    setArchiving(true);
+    try {
+      const res = await fetch("/api/emails/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId: email.id }),
+      });
+      if (res.ok) onArchive();
+    } finally {
+      setArchiving(false);
+    }
+  }
+
+  useEffect(() => {
+    loadThread();
+  }, [email.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadThread() {
+    // Normalize subject to find related emails (strip Re:/RE:/Fwd:)
+    const normalizedSubject = email.subject.replace(/^(Re|RE|Fwd|FWD):\s*/g, "").trim();
+
+    const { data: relatedEmails } = await supabase
+      .from("emails")
+      .select("*, drafts!drafts_email_id_fkey(*)")
+      .eq("project_id", email.project_id)
+      .ilike("subject", `%${normalizedSubject}%`)
+      .order("received_at", { ascending: true });
+
+    if (!relatedEmails) return;
+
+    const messages: ThreadMessage[] = relatedEmails.flatMap((e) => {
+      const draft = Array.isArray(e.drafts)
+        ? e.drafts[0] ?? null
+        : e.drafts ?? null;
+
+      const received: ThreadMessage = { type: "received", email: e };
+      if (e.status === "sent" && draft) {
+        return [received, { type: "sent", email: e, draft } as ThreadMessage];
+      }
+      return [received];
+    });
+
+    setThread(messages);
+  }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -22,24 +76,24 @@ export default function EmailDetail({ email, onSendSuccess }: EmailDetailProps) 
           </h2>
           <div className="flex items-center gap-2 shrink-0">
             <button
-              className="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+              onClick={handleArchive}
+              disabled={archiving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
               title="Archivar"
             >
               <span className="material-symbols-outlined text-lg">archive</span>
+              <span className="text-xs">{archiving ? "Archivando..." : "Archivar"}</span>
             </button>
             <button
               className="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
               title="Marcar como leído"
             >
-              <span className="material-symbols-outlined text-lg">
-                mark_email_read
-              </span>
+              <span className="material-symbols-outlined text-lg">mark_email_read</span>
             </button>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-sm">
-          {/* Sender avatar */}
           <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-on-primary-fixed-variant font-bold text-sm shrink-0">
             {(email.from_name || email.from_address).charAt(0).toUpperCase()}
           </div>
@@ -53,11 +107,8 @@ export default function EmailDetail({ email, onSendSuccess }: EmailDetailProps) 
           </div>
           <p className="text-xs text-outline ml-auto shrink-0">
             {new Date(email.received_at).toLocaleString("es-ES", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
+              day: "numeric", month: "short", year: "numeric",
+              hour: "2-digit", minute: "2-digit",
             })}
           </p>
         </div>
@@ -65,35 +116,36 @@ export default function EmailDetail({ email, onSendSuccess }: EmailDetailProps) 
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto">
-        {/* Toggle: Original / Response */}
+        {/* Toggle tabs */}
         <div className="sticky top-0 bg-surface/90 backdrop-blur-sm z-10 px-6 py-3 flex items-center gap-2">
           <button
-            onClick={() => setShowOriginal(true)}
+            onClick={() => setShowThread(true)}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors
-              ${
-                showOriginal
-                  ? "text-primary bg-primary-fixed/40"
-                  : "text-on-surface-variant hover:bg-surface-container-low"
+              ${showThread
+                ? "text-primary bg-primary-fixed/40"
+                : "text-on-surface-variant hover:bg-surface-container-low"
               }`}
           >
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-base">mail</span>
-              Email original
+              <span className="material-symbols-outlined text-base">forum</span>
+              Conversación
+              {thread.length > 1 && (
+                <span className="ml-1 px-1.5 py-0.5 bg-primary/20 text-primary text-[0.6rem] font-bold rounded-full">
+                  {thread.length}
+                </span>
+              )}
             </span>
           </button>
           <button
-            onClick={() => setShowOriginal(false)}
+            onClick={() => setShowThread(false)}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors
-              ${
-                !showOriginal
-                  ? "text-primary bg-primary-fixed/40"
-                  : "text-on-surface-variant hover:bg-surface-container-low"
+              ${!showThread
+                ? "text-primary bg-primary-fixed/40"
+                : "text-on-surface-variant hover:bg-surface-container-low"
               }`}
           >
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-base">
-                edit_note
-              </span>
+              <span className="material-symbols-outlined text-base">edit_note</span>
               Respuesta AI
               {email.drafts && (
                 <span className="w-2 h-2 bg-tertiary rounded-full" />
@@ -104,24 +156,10 @@ export default function EmailDetail({ email, onSendSuccess }: EmailDetailProps) 
 
         {/* Content */}
         <div className="px-6 pb-6">
-          {showOriginal ? (
-            /* Original email body */
-            <div className="bg-surface-container-lowest rounded-xl p-6 border-ghost">
-              {email.body_html ? (
-                <div
-                  className="prose prose-sm max-w-none text-on-surface
-                             prose-headings:font-headline prose-a:text-primary"
-                  dangerouslySetInnerHTML={{ __html: email.body_html }}
-                />
-              ) : (
-                <pre className="text-sm text-on-surface whitespace-pre-wrap font-body leading-relaxed">
-                  {email.body_text || "Sin contenido"}
-                </pre>
-              )}
-            </div>
+          {showThread ? (
+            <ThreadView messages={thread} />
           ) : (
-            /* Draft editor */
-            <DraftEditor email={email} onSendSuccess={onSendSuccess} />
+            <DraftEditor email={email} onSendSuccess={onSendSuccess} onDraftGenerated={onDraftGenerated} />
           )}
         </div>
       </div>

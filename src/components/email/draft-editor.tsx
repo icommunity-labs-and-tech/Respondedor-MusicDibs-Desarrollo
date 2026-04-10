@@ -7,15 +7,24 @@ import type { EmailWithDraft } from "@/types/database";
 interface DraftEditorProps {
   email: EmailWithDraft;
   onSendSuccess: () => void;
+  onDraftGenerated: () => void;
 }
 
-export default function DraftEditor({ email, onSendSuccess }: DraftEditorProps) {
+type AIProvider = "claude" | "gemini";
+
+const PROVIDERS: { id: AIProvider; label: string; icon: string }[] = [
+  { id: "claude", label: "Claude", icon: "auto_awesome" },
+  { id: "gemini", label: "Gemini", icon: "diamond" },
+];
+
+export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: DraftEditorProps) {
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [provider, setProvider] = useState<AIProvider>("claude");
   const supabase = createClient();
 
   // Load draft content
@@ -60,14 +69,14 @@ export default function DraftEditor({ email, onSendSuccess }: DraftEditorProps) 
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailId: email.id }),
+        body: JSON.stringify({ emailId: email.id, provider }),
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Error al regenerar");
+        throw new Error(data.details || data.error || "Error al regenerar");
       }
-      // Reload the page data to get the new draft
-      window.location.reload();
+      // Notify parent to refresh email data (keeps email selected)
+      onDraftGenerated();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -105,6 +114,26 @@ export default function DraftEditor({ email, onSendSuccess }: DraftEditorProps) 
     }
   }
 
+  // Provider selector (reusable)
+  const ProviderSelector = () => (
+    <div className="flex items-center gap-1 p-1 bg-surface-container-high rounded-lg">
+      {PROVIDERS.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => setProvider(p.id)}
+          className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all
+            ${provider === p.id
+              ? "bg-surface text-on-surface shadow-sm"
+              : "text-on-surface-variant hover:text-on-surface"
+            }`}
+        >
+          <span className="material-symbols-outlined text-sm">{p.icon}</span>
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+
   // No draft yet
   if (!email.drafts) {
     return (
@@ -115,10 +144,12 @@ export default function DraftEditor({ email, onSendSuccess }: DraftEditorProps) 
         <h3 className="text-lg font-bold text-on-surface mb-2">
           Sin borrador AI
         </h3>
-        <p className="text-sm text-on-surface-variant mb-6 max-w-md mx-auto">
-          Este email aún no tiene una respuesta generada por IA. Puedes generar
-          una ahora o escribirla manualmente.
+        <p className="text-sm text-on-surface-variant mb-4 max-w-[28rem] mx-auto">
+          Este email aún no tiene una respuesta generada por IA. Elige el modelo y genera una ahora.
         </p>
+        <div className="flex items-center justify-center mb-6">
+          <ProviderSelector />
+        </div>
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={handleRegenerate}
@@ -137,10 +168,8 @@ export default function DraftEditor({ email, onSendSuccess }: DraftEditorProps) 
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">
-                  psychology
-                </span>
-                Generar con AI
+                <span className="material-symbols-outlined text-base">psychology</span>
+                Generar con {PROVIDERS.find(p => p.id === provider)?.label}
               </span>
             )}
           </button>
@@ -168,25 +197,28 @@ export default function DraftEditor({ email, onSendSuccess }: DraftEditorProps) 
             {email.drafts.model_used}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-outline">
-          {saving && (
-            <span className="flex items-center gap-1">
-              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Guardando...
-            </span>
-          )}
-          {lastSaved && !saving && (
-            <span>
-              Guardado{" "}
-              {lastSaved.toLocaleTimeString("es-ES", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-          )}
+        <div className="flex items-center gap-3">
+          <ProviderSelector />
+          <div className="flex items-center gap-2 text-xs text-outline">
+            {saving && (
+              <span className="flex items-center gap-1">
+                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Guardando...
+              </span>
+            )}
+            {lastSaved && !saving && (
+              <span>
+                Guardado{" "}
+                {lastSaved.toLocaleTimeString("es-ES", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -241,16 +273,6 @@ export default function DraftEditor({ email, onSendSuccess }: DraftEditorProps) 
                 Regenerar
               </>
             )}
-          </button>
-          <button
-            onClick={() => {
-              if (email.drafts) setContent(email.drafts.ai_response);
-            }}
-            className="px-4 py-2 text-on-surface-variant text-sm font-semibold rounded-xl
-                       hover:bg-surface-container-low transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-base">undo</span>
-            Restaurar original
           </button>
         </div>
 

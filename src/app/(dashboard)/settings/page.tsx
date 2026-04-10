@@ -67,7 +67,7 @@ export default function SettingsPage() {
         <h2 className="text-3xl font-extrabold tracking-tight text-on-surface mb-2">
           System Architecture
         </h2>
-        <p className="text-on-surface-variant max-w-2xl">
+        <p className="text-on-surface-variant max-w-[42rem]">
           Manage your AI deployment configurations, active projects, and secure
           email server connections from this central hub.
         </p>

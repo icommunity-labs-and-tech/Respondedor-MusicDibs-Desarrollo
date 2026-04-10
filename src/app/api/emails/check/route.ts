@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { processNewEmails } from "@/lib/email/process-emails";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+function getServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
+
 /**
- * Manual trigger for email check — requires authenticated user.
- * Internally calls the cron endpoint.
+ * Manual trigger — called directly by the backoffice button.
+ * Does not go through the cron endpoint; calls the shared processing
+ * logic directly so it works in local dev without Vercel cron.
  */
 export async function POST(request: NextRequest) {
-  // Verify user is authenticated
+  // Verify the user is authenticated
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -20,21 +31,30 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Call the cron endpoint internally
+    const serviceClient = getServiceClient();
     const origin = new URL(request.url).origin;
-    const cronResponse = await fetch(`${origin}/api/cron/check-emails`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${process.env.CRON_SECRET || ""}`,
-      },
-    });
 
-    const data = await cronResponse.json();
-    return NextResponse.json(data, { status: cronResponse.status });
+    const results = await processNewEmails(
+      serviceClient,
+      origin,
+      process.env.CRON_SECRET
+    );
+
+    const message =
+      results.processed === 0
+        ? "No active projects found"
+        : "Email check completed";
+
+    return NextResponse.json({
+      message,
+      timestamp: new Date().toISOString(),
+      ...results,
+    });
   } catch (error) {
+    console.error("[CHECK] Fatal error:", error);
     return NextResponse.json(
       {
-        error: "Failed to trigger email check",
+        error: "Failed to check emails",
         details: error instanceof Error ? error.message : "Unknown",
       },
       { status: 500 }

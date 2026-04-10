@@ -7,7 +7,7 @@ import EmailList from "@/components/email/email-list";
 import SentDetail from "@/components/email/sent-detail";
 import type { EmailWithDraft } from "@/types/database";
 
-export default function SentPage() {
+export default function ArchivedPage() {
   const { activeProject } = useProject();
   const [emails, setEmails] = useState<EmailWithDraft[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<EmailWithDraft | null>(null);
@@ -23,7 +23,7 @@ export default function SentPage() {
       .from("emails")
       .select("*, drafts!drafts_email_id_fkey(*)")
       .eq("project_id", activeProject.id)
-      .eq("status", "sent")
+      .eq("status", "archived")
       .order("updated_at", { ascending: false });
 
     if (data) {
@@ -49,7 +49,18 @@ export default function SentPage() {
     setSelectedEmail(null);
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Filter by search
+  // Real-time: remove from list if status changes away from archived
+  useEffect(() => {
+    const channel = supabase
+      .channel("archived-emails")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "emails" }, () => {
+        loadEmails();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadEmails]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const filteredEmails = search.trim()
     ? emails.filter(
         (e) =>
@@ -63,16 +74,14 @@ export default function SentPage() {
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Email list panel */}
       <div className="w-[380px] shrink-0 bg-surface-container-low/50 flex flex-col border-r border-outline-variant/10">
-        {/* Header */}
         <div className="p-4 pb-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-on-surface">Enviados</h3>
+            <h3 className="text-sm font-bold text-on-surface">Archivados</h3>
             <span className="text-xs text-on-surface-variant font-medium">
               {filteredEmails.length} {filteredEmails.length === 1 ? "email" : "emails"}
             </span>
           </div>
 
-          {/* Search */}
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">
               search
@@ -90,7 +99,6 @@ export default function SentPage() {
           </div>
         </div>
 
-        {/* List */}
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center gap-3 text-on-surface-variant">
@@ -112,18 +120,18 @@ export default function SentPage() {
 
       {/* Detail panel */}
       {selectedEmail ? (
-        <SentDetail email={selectedEmail} onArchive={() => { setSelectedEmail(null); loadEmails(); }} />
+        <SentDetail email={selectedEmail} />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-container-low/50">
           <span className="material-symbols-outlined text-7xl text-outline-variant/30 mb-6">
-            outgoing_mail
+            archive
           </span>
           <h3 className="text-xl font-bold text-on-surface mb-2">
-            Historial de enviados
+            Archivados
           </h3>
           <p className="text-sm text-on-surface-variant max-w-[24rem]">
-            Selecciona un email de la lista para ver el mensaje original y la
-            respuesta que fue enviada.
+            Aquí aparecen los emails que has archivado. Se han eliminado del servidor IMAP
+            pero puedes consultarlos en cualquier momento.
           </p>
         </div>
       )}

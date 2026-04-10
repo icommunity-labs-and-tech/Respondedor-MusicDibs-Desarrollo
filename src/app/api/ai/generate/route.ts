@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateEmailResponse } from "@/lib/ai/claude";
+import { generateEmailResponseGemini } from "@/lib/ai/gemini";
 import { loadProjectContext } from "@/lib/ai/context-loader";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+// Force US East region so Gemini API calls originate from a US IP
+// (Gemini API has 0 free credits in Spain/EU — bypassed by running server-side from US)
+export const preferredRegion = ["iad1"];
 
 function getServiceClient() {
   return createClient(
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest) {
 
   // Parse request
   const body = await request.json();
-  const { emailId } = body;
+  const { emailId, provider = "claude" } = body; // provider: "claude" | "gemini"
 
   if (!emailId) {
     return NextResponse.json(
@@ -89,7 +93,7 @@ export async function POST(request: NextRequest) {
       ? email.body_text
       : emailBody.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
-    const result = await generateEmailResponse({
+    const aiParams = {
       emailSubject: email.subject,
       emailBody: cleanBody,
       senderName: email.from_name || email.from_address,
@@ -97,7 +101,11 @@ export async function POST(request: NextRequest) {
       projectContext: context,
       projectName: project.name,
       replyFromEmail: project.email_address,
-    });
+    };
+
+    const result = provider === "gemini"
+      ? await generateEmailResponseGemini(aiParams)
+      : await generateEmailResponse(aiParams);
 
     // 4. Save draft to database (upsert — regeneration overwrites existing draft)
     const { data: draft, error: draftError } = await supabase

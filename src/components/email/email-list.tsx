@@ -56,7 +56,7 @@ export default function EmailList({
         <h3 className="text-lg font-bold text-on-surface mb-1">
           Sin emails pendientes
         </h3>
-        <p className="text-sm text-on-surface-variant max-w-xs">
+        <p className="text-sm text-on-surface-variant max-w-[20rem]">
           Cuando lleguen nuevos emails, aparecerán aquí para que puedas revisarlos y responderlos.
         </p>
       </div>

@@ -25,6 +25,11 @@ export type EmailWithDraft = Email & {
   drafts: Draft | null;
 };
 
+// A single message in a thread (received or sent)
+export type ThreadMessage =
+  | { type: "received"; email: Email }
+  | { type: "sent"; email: Email; draft: Draft };
+
 // Status type literals
 export type EmailStatus = "pending" | "draft_ready" | "sent" | "archived";
 export type ProjectStatus = "active" | "inactive";

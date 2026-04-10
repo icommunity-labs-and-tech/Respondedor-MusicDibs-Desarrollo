@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useProject } from "@/contexts/project-context";
 import EmailList from "@/components/email/email-list";
@@ -15,30 +15,40 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
+  // Ref to access current selectedEmail inside loadEmails without stale closure
+  const selectedEmailRef = useRef<EmailWithDraft | null>(null);
+  selectedEmailRef.current = selectedEmail;
+
   const loadEmails = useCallback(async () => {
     if (!activeProject) return;
     setLoading(true);
 
     const { data, error } = await supabase
       .from("emails")
-      .select("*, drafts(*)")
+      .select("*, drafts!drafts_email_id_fkey(*)")
       .eq("project_id", activeProject.id)
       .in("status", ["pending", "draft_ready"])
       .order("received_at", { ascending: false });
 
     if (data) {
-      // Normalize: Supabase returns drafts as array, we want single object
-      const normalized = data.map((email: Record<string, unknown>) => ({
-        ...email,
-        drafts: Array.isArray(email.drafts) && email.drafts.length > 0
-          ? email.drafts[0]
-          : null,
-      })) as EmailWithDraft[];
+      // Normalize: Supabase may return drafts as array OR single object
+      // (object when using FK hint + unique constraint on email_id)
+      const normalized = data.map((email: Record<string, unknown>) => {
+        const rawDrafts = email.drafts;
+        let draft = null;
+        if (Array.isArray(rawDrafts) && rawDrafts.length > 0) {
+          draft = rawDrafts[0];
+        } else if (rawDrafts && !Array.isArray(rawDrafts)) {
+          draft = rawDrafts; // PostgREST returned a single object
+        }
+        return { ...email, drafts: draft };
+      }) as EmailWithDraft[];
       setEmails(normalized);
 
-      // Update selected email if it's in the new list
-      if (selectedEmail) {
-        const updated = normalized.find((e) => e.id === selectedEmail.id);
+      // Use ref to avoid stale closure — selectedEmail is always current
+      const currentSelected = selectedEmailRef.current;
+      if (currentSelected) {
+        const updated = normalized.find((e) => e.id === currentSelected.id);
         if (updated) {
           setSelectedEmail(updated);
         } else {
@@ -96,6 +106,11 @@ export default function InboxPage() {
     loadEmails();
   }
 
+  function handleArchive() {
+    setSelectedEmail(null);
+    loadEmails();
+  }
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Email list panel */}
@@ -134,7 +149,7 @@ export default function InboxPage() {
 
       {/* Detail panel */}
       {selectedEmail ? (
-        <EmailDetail email={selectedEmail} onSendSuccess={handleSendSuccess} />
+        <EmailDetail email={selectedEmail} onSendSuccess={handleSendSuccess} onDraftGenerated={loadEmails} onArchive={handleArchive} />
       ) : (
         <EmailEmptyState />
       )}

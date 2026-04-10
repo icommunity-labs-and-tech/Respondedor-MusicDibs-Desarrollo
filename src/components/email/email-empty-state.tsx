@@ -9,7 +9,7 @@ export default function EmailEmptyState() {
       <h3 className="text-xl font-bold text-on-surface mb-2">
         Selecciona un email
       </h3>
-      <p className="text-sm text-on-surface-variant max-w-sm">
+      <p className="text-sm text-on-surface-variant max-w-[24rem]">
         Elige un email de la lista para ver su contenido y revisar o editar la
         respuesta generada por IA.
       </p>

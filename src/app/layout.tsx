@@ -19,7 +19,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-surface text-on-surface antialiased">
+      <body className="min-h-screen bg-surface text-on-surface antialiased" suppressHydrationWarning>
         {children}
       </body>
     </html>

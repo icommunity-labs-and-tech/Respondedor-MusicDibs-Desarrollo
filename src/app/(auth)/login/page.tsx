@@ -80,7 +80,7 @@ export default function LoginPage() {
 
       {/* Right Panel — Login Form */}
       <div className="flex-1 flex items-center justify-center bg-surface p-8">
-        <div className="w-full max-w-md space-y-8">
+        <div className="w-full max-w-[28rem] space-y-8">
           {/* Mobile brand (visible only on small screens) */}
           <div className="lg:hidden text-center mb-8">
             <h1 className="text-2xl font-extrabold text-on-surface tracking-tight">

@@ -1,23 +1,94 @@
 "use client";
 
-import type { EmailWithDraft } from "@/types/database";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { EmailWithDraft, ThreadMessage } from "@/types/database";
+import ThreadView from "./thread-view";
 
 interface SentDetailProps {
   email: EmailWithDraft;
+  onArchive?: () => void;
 }
 
-export default function SentDetail({ email }: SentDetailProps) {
+export default function SentDetail({ email, onArchive }: SentDetailProps) {
+  const [thread, setThread] = useState<ThreadMessage[]>([]);
+  const [archiving, setArchiving] = useState(false);
+  const supabase = createClient();
+
+  async function handleArchive() {
+    if (archiving) return;
+    setArchiving(true);
+    try {
+      const res = await fetch("/api/emails/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId: email.id }),
+      });
+      if (res.ok && onArchive) onArchive();
+    } finally {
+      setArchiving(false);
+    }
+  }
+
+  useEffect(() => {
+    loadThread();
+  }, [email.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadThread() {
+    const normalizedSubject = email.subject.replace(/^(Re|RE|Fwd|FWD):\s*/g, "").trim();
+
+    const { data: relatedEmails } = await supabase
+      .from("emails")
+      .select("*, drafts!drafts_email_id_fkey(*)")
+      .eq("project_id", email.project_id)
+      .ilike("subject", `%${normalizedSubject}%`)
+      .order("received_at", { ascending: true });
+
+    if (!relatedEmails) return;
+
+    const messages: ThreadMessage[] = relatedEmails.flatMap((e) => {
+      const draft = Array.isArray(e.drafts)
+        ? e.drafts[0] ?? null
+        : e.drafts ?? null;
+
+      const received: ThreadMessage = { type: "received", email: e };
+      if (e.status === "sent" && draft) {
+        return [received, { type: "sent", email: e, draft } as ThreadMessage];
+      }
+      return [received];
+    });
+
+    setThread(messages);
+  }
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
-      {/* Email Header */}
+      {/* Header */}
       <div className="p-6 pb-4 border-b border-outline-variant/10">
         <div className="flex items-start justify-between mb-3">
           <h2 className="text-xl font-bold text-on-surface leading-tight pr-4">
             {email.subject}
           </h2>
-          <span className="px-3 py-1 bg-secondary-fixed text-on-secondary-fixed-variant text-[0.65rem] font-bold rounded-full shrink-0">
-            SENT
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleArchive}
+              disabled={archiving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
+              title="Archivar"
+            >
+              <span className="material-symbols-outlined text-lg">archive</span>
+              <span className="text-xs">{archiving ? "Archivando..." : "Archivar"}</span>
+            </button>
+            <span className="px-3 py-1 bg-secondary-fixed text-on-secondary-fixed-variant text-[0.65rem] font-bold rounded-full">
+              SENT
+            </span>
+            {thread.length > 1 && (
+              <span className="px-3 py-1 bg-primary-fixed/30 text-primary text-[0.65rem] font-bold rounded-full flex items-center gap-1">
+                <span className="material-symbols-outlined text-xs">forum</span>
+                {thread.length} mensajes
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-4 text-sm">
@@ -34,92 +105,16 @@ export default function SentDetail({ email }: SentDetailProps) {
           </div>
           <p className="text-xs text-outline ml-auto shrink-0">
             {new Date(email.received_at).toLocaleString("es-ES", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
+              day: "numeric", month: "short", year: "numeric",
+              hour: "2-digit", minute: "2-digit",
             })}
           </p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Original email */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="material-symbols-outlined text-base text-on-surface-variant">
-              mail
-            </span>
-            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              Email recibido
-            </span>
-          </div>
-          <div className="bg-surface-container-low rounded-xl p-5">
-            {email.body_html ? (
-              <div
-                className="prose prose-sm max-w-none text-on-surface prose-a:text-primary"
-                dangerouslySetInnerHTML={{ __html: email.body_html }}
-              />
-            ) : (
-              <pre className="text-sm text-on-surface whitespace-pre-wrap font-body leading-relaxed">
-                {email.body_text || "Sin contenido"}
-              </pre>
-            )}
-          </div>
-        </div>
-
-        {/* Sent response */}
-        {email.drafts && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-base text-tertiary">
-                  reply
-                </span>
-                <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-                  Respuesta enviada
-                </span>
-              </div>
-              {email.drafts.sent_at && (
-                <span className="text-xs text-outline">
-                  Enviado el{" "}
-                  {new Date(email.drafts.sent_at).toLocaleString("es-ES", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              )}
-            </div>
-            <div className="bg-surface-container-lowest rounded-xl p-5 border-ghost">
-              <pre className="text-sm text-on-surface whitespace-pre-wrap font-body leading-relaxed">
-                {email.drafts.edited_response}
-              </pre>
-            </div>
-
-            {/* Metadata */}
-            <div className="flex items-center gap-4 mt-3 px-1">
-              <span className="text-[0.65rem] text-outline flex items-center gap-1">
-                <span className="material-symbols-outlined text-xs">
-                  psychology
-                </span>
-                {email.drafts.model_used}
-              </span>
-              {email.drafts.tokens_used && (
-                <span className="text-[0.65rem] text-outline flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs">
-                    token
-                  </span>
-                  {email.drafts.tokens_used.toLocaleString()} tokens
-                </span>
-              )}
-            </div>
-          </div>
-        )}
+      {/* Thread */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <ThreadView messages={thread} />
       </div>
     </div>
   );

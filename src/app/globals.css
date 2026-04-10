@@ -76,12 +76,7 @@
   --font-label: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  /* --- Spacing Scale (4pt grid) --- */
-  --spacing-sm: 4px;
-  --spacing-md: 8px;
-  --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 40px;
+  /* --- Border Radius (moved here, spacing tokens moved to :root to avoid Tailwind v4 utility conflicts) --- */
 
   /* --- Border Radius --- */
   --radius-sm: 0.125rem;
@@ -90,6 +85,15 @@
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
   --radius-full: 9999px;
+}
+
+/* --- Design Spacing Tokens (outside @theme to avoid Tailwind v4 utility name conflicts) --- */
+:root {
+  --design-spacing-sm: 4px;
+  --design-spacing-md: 8px;
+  --design-spacing-lg: 16px;
+  --design-spacing-xl: 24px;
+  --design-spacing-2xl: 40px;
 }
 
 /* --- Base Styles --- */
