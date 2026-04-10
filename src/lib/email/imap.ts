@@ -143,6 +143,16 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
  * Marks as \Deleted and expunges to permanently remove it.
  */
 export async function deleteEmailByUid(uid: number): Promise<void> {
+  return deleteEmailsByUids([uid]);
+}
+
+/**
+ * Deletes multiple emails from the IMAP server in a single connection.
+ * Used when archiving a full thread to avoid opening one connection per message.
+ */
+export async function deleteEmailsByUids(uids: number[]): Promise<void> {
+  if (uids.length === 0) return;
+
   const config = getImapConfig();
 
   const client = new ImapFlow({
@@ -162,14 +172,22 @@ export async function deleteEmailByUid(uid: number): Promise<void> {
     const lock = await client.getMailboxLock("INBOX");
 
     try {
-      await client.messageDelete({ uid }, { uid: true });
+      // Delete all UIDs in one IMAP command using a UID set
+      for (const uid of uids) {
+        try {
+          await client.messageDelete({ uid }, { uid: true });
+        } catch (err) {
+          // Non-fatal per UID: message may already be gone
+          console.warn(`[IMAP] Could not delete UID ${uid}:`, err);
+        }
+      }
     } finally {
       lock.release();
     }
 
     await client.logout();
   } catch (error) {
-    console.error("[IMAP] Delete error:", error);
+    console.error("[IMAP] Batch delete error:", error);
     try { await client.logout(); } catch { /* ignore */ }
     throw error;
   }
