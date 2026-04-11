@@ -58,6 +58,12 @@ ANTHROPIC_API_KEY=
 - **mailparser en Next.js:** añadir `imapflow`, `nodemailer`, `mailparser` a `serverExternalPackages` en `next.config.ts` o webpack los bundlea y falla.
 - **ImapFlow download:** `client.download(seq)` devuelve el mensaje RFC 5322 completo (headers + body). Usar `simpleParser` de mailparser para extraer `html`/`text` correctamente.
 - **Debug endpoint:** `src/app/api/debug/imap/route.ts` es temporal, no deployar a producción.
+- **Git en Windows (MCP PowerShell):** Los comandos git cuelgan si se ejecutan directamente. Usar siempre `Start-Job` con `-Timeout` y `Receive-Job`. Para index corrupto: `Remove-Item .git\index -Force` + `Remove-Item .git\index.lock -Force` desde PowerShell.
+- **Vercel runtime filesystem:** Read-only en producción. Nunca intentar `fs.writeFile` en `process.cwd()` desde una serverless function. Datos dinámicos → Supabase.
+- **Gemini API en España/EU:** Restringido con 0 créditos. Fix: `export const preferredRegion = ["iad1"]` en la route que hace la llamada (fuerza ejecución en US East).
+- **Supabase Respondedor project_id:** `skprvlhzbnwlhsslvqfg` (eu-west-2). Nueva tabla: `knowledge_qa` (project_id, question, answer, category, created_at).
+- **Archive de hilo completo:** BFS via `message_id`/`in_reply_to` desde root para encontrar todos los mensajes. Ver `src/app/api/emails/archive/route.ts → collectThreadIds()`.
+- **context-loader.ts:** Fusiona fichero estático `contexts/*.md` + últimas 50 entradas de `knowledge_qa` en Supabase. Siempre pasar `projectId` al llamar `loadProjectContext()`.
 
 ## Workflow Orchestration
 
