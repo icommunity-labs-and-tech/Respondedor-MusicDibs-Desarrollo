@@ -70,15 +70,17 @@ export default function SentDetail({ email, onArchive }: SentDetailProps) {
             {email.subject}
           </h2>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleArchive}
-              disabled={archiving}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
-              title="Archivar"
-            >
-              <span className="material-symbols-outlined text-lg">archive</span>
-              <span className="text-xs">{archiving ? "Archivando..." : "Archivar"}</span>
-            </button>
+            {email.status !== "archived" && (
+              <button
+                onClick={handleArchive}
+                disabled={archiving}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
+                title="Archivar"
+              >
+                <span className="material-symbols-outlined text-lg">archive</span>
+                <span className="text-xs">{archiving ? "Archivando..." : "Archivar"}</span>
+              </button>
+            )}
             <span className="px-3 py-1 bg-secondary-fixed text-on-secondary-fixed-variant text-[0.65rem] font-bold rounded-full">
               SENT
             </span>
