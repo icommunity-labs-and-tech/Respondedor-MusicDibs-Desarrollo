@@ -70,7 +70,7 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
             envelope: true,
           });
 
-          if (!message?.envelope) continue;
+          if (!message || message === false || !message.envelope) continue;
 
           // Skip if already stored (by uid)
           if (lastUid && lastUid > 0 && message.uid <= lastUid) continue;
@@ -88,7 +88,7 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
             const dl = await client.download(String(seq), undefined, {
               uid: false,
             });
-            if (dl?.content) {
+            if (dl && dl !== false && dl.content) {
               const chunks: Buffer[] = [];
               for await (const chunk of dl.content) {
                 chunks.push(Buffer.from(chunk));
