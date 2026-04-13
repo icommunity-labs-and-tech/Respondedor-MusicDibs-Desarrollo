@@ -17,6 +17,7 @@ src/
 │   ├── (dashboard)/
 │   │   ├── inbox/page.tsx     # Main inbox (email list + detail + draft editor)
 │   │   ├── sent/              # Sent emails view
+│   │   ├── archived/          # Emails archivados (status=archived)
 │   │   └── settings/          # IMAP/SMTP config per project
 │   └── api/
 │       ├── ai/generate/       # POST → generate AI draft via Claude
@@ -44,11 +45,23 @@ drafts      id, email_id(UNIQUE FK), ai_response, edited_response, model_used, t
 
 ## Environment
 
-Required in `.env.local`:
+Required in `.env.local` (y en Vercel → Settings → Environment Variables):
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
+IMAP_HOST=
+IMAP_PORT=993
+IMAP_USER=
+IMAP_PASSWORD=
+IMAP_TLS=true
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASSWORD=
+CRON_SECRET=
 ```
 
 ## Gotchas
@@ -57,10 +70,12 @@ ANTHROPIC_API_KEY=
 - **Stale closures en useCallback:** usar `useRef` para acceder a `selectedEmail` dentro de `loadEmails` sin ponerlo en el deps array (causaría re-creación del callback en cada selección).
 - **mailparser en Next.js:** añadir `imapflow`, `nodemailer`, `mailparser` a `serverExternalPackages` en `next.config.ts` o webpack los bundlea y falla.
 - **ImapFlow download:** `client.download(seq)` devuelve el mensaje RFC 5322 completo (headers + body). Usar `simpleParser` de mailparser para extraer `html`/`text` correctamente.
-- **Debug endpoint:** `src/app/api/debug/imap/route.ts` es temporal, no deployar a producción.
+- **Debug endpoint:** `src/app/api/debug/imap/route.ts` es temporal, no deployar a producción. Tiene tipos ImapFlow no resueltos — ver gotcha siguiente.
+- **ImapFlow tipos — `false | T`:** `client.search()`, `client.fetchOne()`, `client.download()` y `client.mailbox` devuelven `false | T`. El optional chaining `?.` no hace narrowing desde `false`. Usar siempre narrowing explícito: `const result = await client.search(...); const seqNums = result === false ? [] : result;` y `if (!message || !message.envelope) continue;`. TypeScript falla en build (Vercel) aunque `next dev` pase sin errores.
 - **Git en Windows (MCP PowerShell):** Los comandos git cuelgan si se ejecutan directamente. Usar siempre `Start-Job` con `-Timeout` y `Receive-Job`. Para index corrupto: `Remove-Item .git\index -Force` + `Remove-Item .git\index.lock -Force` desde PowerShell.
+- **Vercel "Redeploy" reutiliza el commit antiguo:** El botón Redeploy en el dashboard de Vercel redeploya el mismo commit, no el último de main. Para deployar código nuevo: hacer push o `git commit --allow-empty -m "chore: trigger deploy" && git push`.
 - **Vercel runtime filesystem:** Read-only en producción. Nunca intentar `fs.writeFile` en `process.cwd()` desde una serverless function. Datos dinámicos → Supabase.
-- **Gemini API en España/EU:** Restringido con 0 créditos. Fix: `export const preferredRegion = ["iad1"]` en la route que hace la llamada (fuerza ejecución en US East).
+- **Gemini API en España/EU:** Restringido con 0 créditos en free tier (quota literal = 0). Fix: `export const preferredRegion = ["iad1"]` en la route que hace la llamada (fuerza ejecución en US East). Requiere billing activo en Google Cloud.
 - **Supabase Respondedor project_id:** `skprvlhzbnwlhsslvqfg` (eu-west-2). Nueva tabla: `knowledge_qa` (project_id, question, answer, category, created_at).
 - **Archive de hilo completo:** BFS via `message_id`/`in_reply_to` desde root para encontrar todos los mensajes. Ver `src/app/api/emails/archive/route.ts → collectThreadIds()`.
 - **context-loader.ts:** Fusiona fichero estático `contexts/*.md` + últimas 50 entradas de `knowledge_qa` en Supabase. Siempre pasar `projectId` al llamar `loadProjectContext()`.
