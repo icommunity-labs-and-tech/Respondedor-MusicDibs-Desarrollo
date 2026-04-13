@@ -10,11 +10,10 @@ interface DraftEditorProps {
   onDraftGenerated: () => void;
 }
 
-type AIProvider = "claude" | "gemini";
+type AIProvider = "claude";
 
 const PROVIDERS: { id: AIProvider; label: string; icon: string }[] = [
   { id: "claude", label: "Claude", icon: "auto_awesome" },
-  { id: "gemini", label: "Gemini", icon: "diamond" },
 ];
 
 export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: DraftEditorProps) {
