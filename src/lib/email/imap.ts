@@ -59,7 +59,8 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
 
     try {
       // Get sequence numbers of unseen messages (no uid option = seq nums)
-      const seqNums: number[] = await client.search({ seen: false });
+      const searchResult = await client.search({ seen: false });
+      const seqNums: number[] = searchResult === false ? [] : searchResult;
 
       for (const seq of seqNums) {
         try {
