@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { generateEmailResponse } from "@/lib/ai/claude";
+import { generateEmailResponseGemini } from "@/lib/ai/gemini";
 import { loadProjectContext } from "@/lib/ai/context-loader";
 
 export const runtime = "nodejs";
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
 
   // Parse request
   const body = await request.json();
-  const { emailId } = body;
+  const { emailId, provider = "claude" } = body; // provider: "claude" | "gemini"
 
   if (!emailId) {
     return NextResponse.json(
@@ -102,7 +103,9 @@ export async function POST(request: NextRequest) {
       replyFromEmail: project.email_address,
     };
 
-    const result = await generateEmailResponse(aiParams);
+    const result = provider === "gemini"
+      ? await generateEmailResponseGemini(aiParams)
+      : await generateEmailResponse(aiParams);
 
     // 4. Save draft to database (upsert — regeneration overwrites existing draft)
     const { data: draft, error: draftError } = await supabase
