@@ -27,7 +27,8 @@ export async function GET() {
     steps.selectInbox = { exists: client.mailbox !== false ? client.mailbox.exists : undefined };
 
     try {
-      const seqNums = await client.search({ seen: false });
+      const seqNumsRaw = await client.search({ seen: false });
+      const seqNums = seqNumsRaw === false ? [] : seqNumsRaw;
       steps.search = { seqNums };
 
       if (seqNums.length > 0) {
