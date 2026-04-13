@@ -24,7 +24,7 @@ export async function GET() {
     steps.connect = "OK";
 
     const lock = await client.getMailboxLock("INBOX");
-    steps.selectInbox = { exists: client.mailbox?.exists };
+    steps.selectInbox = { exists: client.mailbox !== false ? client.mailbox.exists : undefined };
 
     try {
       const seqNums = await client.search({ seen: false });
