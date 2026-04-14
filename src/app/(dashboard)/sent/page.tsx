@@ -49,6 +49,14 @@ export default function SentPage() {
     setSelectedEmail(null);
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function handleToggleFavorite(email: EmailWithDraft) {
+    await supabase
+      .from("emails")
+      .update({ is_favorite: !email.is_favorite })
+      .eq("id", email.id);
+    loadEmails();
+  }
+
   // Filter by search
   const filteredEmails = search.trim()
     ? emails.filter(
@@ -106,6 +114,7 @@ export default function SentPage() {
             emails={filteredEmails}
             selectedId={selectedEmail?.id || null}
             onSelect={setSelectedEmail}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
       </div>

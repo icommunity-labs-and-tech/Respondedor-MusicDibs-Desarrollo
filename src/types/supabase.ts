@@ -119,6 +119,7 @@ export type Database = {
           from_name: string | null
           id: string
           in_reply_to: string | null
+          is_favorite: boolean
           message_id: string
           project_id: string
           received_at: string
@@ -136,6 +137,7 @@ export type Database = {
           from_name?: string | null
           id?: string
           in_reply_to?: string | null
+          is_favorite?: boolean
           message_id: string
           project_id: string
           received_at?: string
@@ -153,6 +155,7 @@ export type Database = {
           from_name?: string | null
           id?: string
           in_reply_to?: string | null
+          is_favorite?: boolean
           message_id?: string
           project_id?: string
           received_at?: string

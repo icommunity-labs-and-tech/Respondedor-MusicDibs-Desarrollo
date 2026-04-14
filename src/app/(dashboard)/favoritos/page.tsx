@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useProject } from "@/contexts/project-context";
 import EmailList from "@/components/email/email-list";
 import EmailDetail from "@/components/email/email-detail";
-import EmailEmptyState from "@/components/email/email-empty-state";
+import SentDetail from "@/components/email/sent-detail";
 import type { EmailWithDraft } from "@/types/database";
 
-export default function InboxPage() {
+export default function FavoritosPage() {
   const { activeProject } = useProject();
   const [emails, setEmails] = useState<EmailWithDraft[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<EmailWithDraft | null>(null);
@@ -16,91 +16,59 @@ export default function InboxPage() {
   const [search, setSearch] = useState("");
   const supabase = createClient();
 
-  // Ref to access current selectedEmail inside loadEmails without stale closure
-  const selectedEmailRef = useRef<EmailWithDraft | null>(null);
-  selectedEmailRef.current = selectedEmail;
-
   const loadEmails = useCallback(async () => {
     if (!activeProject) return;
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("emails")
       .select("*, drafts!drafts_email_id_fkey(*)")
       .eq("project_id", activeProject.id)
-      .in("status", ["pending", "draft_ready"])
+      .eq("is_favorite", true)
       .order("received_at", { ascending: false });
 
     if (data) {
-      // Normalize: Supabase may return drafts as array OR single object
-      // (object when using FK hint + unique constraint on email_id)
-      const normalized = data.map((email: Record<string, unknown>) => {
-        const rawDrafts = email.drafts;
-        let draft = null;
-        if (Array.isArray(rawDrafts) && rawDrafts.length > 0) {
-          draft = rawDrafts[0];
-        } else if (rawDrafts && !Array.isArray(rawDrafts)) {
-          draft = rawDrafts; // PostgREST returned a single object
-        }
-        return { ...email, drafts: draft };
-      }) as EmailWithDraft[];
+      const normalized = data.map((email: Record<string, unknown>) => ({
+        ...email,
+        drafts: Array.isArray(email.drafts)
+          ? (email.drafts.length > 0 ? email.drafts[0] : null)
+          : (email.drafts ?? null),
+      })) as EmailWithDraft[];
       setEmails(normalized);
 
-      // Use ref to avoid stale closure — selectedEmail is always current
-      const currentSelected = selectedEmailRef.current;
-      if (currentSelected) {
-        const updated = normalized.find((e) => e.id === currentSelected.id);
-        if (updated) {
-          setSelectedEmail(updated);
-        } else {
-          setSelectedEmail(null);
-        }
+      if (selectedEmail) {
+        const updated = normalized.find((e) => e.id === selectedEmail.id);
+        if (updated) setSelectedEmail(updated);
+        else setSelectedEmail(null);
       }
     }
     setLoading(false);
   }, [activeProject, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load emails when project changes
   useEffect(() => {
     loadEmails();
+    setSelectedEmail(null);
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Real-time subscription for new emails
   useEffect(() => {
     if (!activeProject) return;
-
     const channel = supabase
-      .channel("inbox-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "emails",
-          filter: `project_id=eq.${activeProject.id}`,
-        },
-        () => {
-          loadEmails();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "drafts",
-          filter: `project_id=eq.${activeProject.id}`,
-        },
-        () => {
-          loadEmails();
-        }
-      )
+      .channel("favoritos-emails")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "emails",
+        filter: `project_id=eq.${activeProject.id}` }, () => {
+        loadEmails();
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleToggleFavorite(email: EmailWithDraft) {
+    await supabase
+      .from("emails")
+      .update({ is_favorite: !email.is_favorite })
+      .eq("id", email.id);
+    loadEmails();
+  }
 
   const filteredEmails = search.trim()
     ? emails.filter(
@@ -111,38 +79,21 @@ export default function InboxPage() {
       )
     : emails;
 
-  async function handleToggleFavorite(email: EmailWithDraft) {
-    await supabase
-      .from("emails")
-      .update({ is_favorite: !email.is_favorite })
-      .eq("id", email.id);
-    loadEmails();
-  }
-
-  function handleSendSuccess() {
-    setSelectedEmail(null);
-    loadEmails();
-  }
-
-  function handleArchive() {
-    setSelectedEmail(null);
-    loadEmails();
-  }
+  const isSentOrArchived = (email: EmailWithDraft) =>
+    email.status === "sent" || email.status === "archived";
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Email list panel */}
       <div className="w-[380px] shrink-0 bg-surface-container-low/50 flex flex-col border-r border-outline-variant/10">
-        {/* List header */}
         <div className="p-4 pb-3 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-on-surface">Pendientes</h3>
+            <h3 className="text-sm font-bold text-on-surface">Favoritos</h3>
             <span className="text-xs text-on-surface-variant font-medium">
               {filteredEmails.length} {filteredEmails.length === 1 ? "email" : "emails"}
             </span>
           </div>
 
-          {/* Search */}
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">
               search
@@ -160,7 +111,6 @@ export default function InboxPage() {
           </div>
         </div>
 
-        {/* Email list */}
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center gap-3 text-on-surface-variant">
@@ -170,6 +120,16 @@ export default function InboxPage() {
               </svg>
               <span className="text-sm">Cargando emails...</span>
             </div>
+          </div>
+        ) : filteredEmails.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <span className="material-symbols-outlined text-6xl text-outline-variant/40 mb-4">
+              star
+            </span>
+            <h3 className="text-lg font-bold text-on-surface mb-1">Sin favoritos</h3>
+            <p className="text-sm text-on-surface-variant max-w-[20rem]">
+              Marca emails con la estrella para que aparezcan aquí.
+            </p>
           </div>
         ) : (
           <EmailList
@@ -183,9 +143,30 @@ export default function InboxPage() {
 
       {/* Detail panel */}
       {selectedEmail ? (
-        <EmailDetail email={selectedEmail} onSendSuccess={handleSendSuccess} onDraftGenerated={loadEmails} onArchive={handleArchive} />
+        isSentOrArchived(selectedEmail) ? (
+          <SentDetail
+            email={selectedEmail}
+            onArchive={() => { setSelectedEmail(null); loadEmails(); }}
+          />
+        ) : (
+          <EmailDetail
+            email={selectedEmail}
+            onSendSuccess={() => { setSelectedEmail(null); loadEmails(); }}
+            onDraftGenerated={loadEmails}
+            onArchive={() => { setSelectedEmail(null); loadEmails(); }}
+          />
+        )
       ) : (
-        <EmailEmptyState />
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-surface-container-low/50">
+          <span className="material-symbols-outlined text-7xl text-yellow-400/60 mb-6">
+            star
+          </span>
+          <h3 className="text-xl font-bold text-on-surface mb-2">Emails favoritos</h3>
+          <p className="text-sm text-on-surface-variant max-w-[24rem]">
+            Selecciona un email para verlo, o marca cualquier email con la estrella
+            desde el Inbox o Enviados.
+          </p>
+        </div>
       )}
     </div>
   );

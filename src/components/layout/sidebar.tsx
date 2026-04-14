@@ -7,6 +7,7 @@ import { signOut } from "@/lib/auth/actions";
 const navItems = [
   { href: "/inbox", icon: "inbox", label: "Inbox" },
   { href: "/sent", icon: "send", label: "Sent" },
+  { href: "/favoritos", icon: "star", label: "Favoritos" },
   { href: "/archived", icon: "archive", label: "Archivados" },
   { href: "/settings", icon: "settings", label: "Settings" },
 ];

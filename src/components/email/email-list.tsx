@@ -6,6 +6,7 @@ interface EmailListProps {
   emails: EmailWithDraft[];
   selectedId: string | null;
   onSelect: (email: EmailWithDraft) => void;
+  onToggleFavorite?: (email: EmailWithDraft) => void;
 }
 
 function getStatusBadge(status: string, hasDraft: boolean) {
@@ -46,6 +47,7 @@ export default function EmailList({
   emails,
   selectedId,
   onSelect,
+  onToggleFavorite,
 }: EmailListProps) {
   if (emails.length === 0) {
     return (
@@ -75,7 +77,7 @@ export default function EmailList({
             <button
               key={email.id}
               onClick={() => onSelect(email)}
-              className={`w-full text-left p-4 rounded-xl transition-all duration-150 group
+              className={`w-full text-left p-4 rounded-xl transition-all duration-150 group/item
                 ${
                   isSelected
                     ? "bg-surface-container-lowest shadow-ambient"
@@ -87,10 +89,10 @@ export default function EmailList({
                     : ""
                 }`}
             >
-              {/* Top row: sender + time */}
-              <div className="flex items-center justify-between mb-1.5">
+              {/* Top row: sender + star + time */}
+              <div className="flex items-center gap-1 mb-1.5">
                 <span
-                  className={`text-sm font-semibold truncate max-w-[60%] ${
+                  className={`text-sm font-semibold truncate flex-1 ${
                     email.status === "pending" && !hasDraft
                       ? "text-on-surface"
                       : "text-on-surface-variant"
@@ -98,7 +100,29 @@ export default function EmailList({
                 >
                   {email.from_name || email.from_address}
                 </span>
-                <span className="text-[0.7rem] text-outline font-medium shrink-0 ml-2">
+
+                {onToggleFavorite && (
+                  <span
+                    role="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(email);
+                    }}
+                    title={email.is_favorite ? "Quitar de favoritos" : "Añadir a favoritos"}
+                    className={`shrink-0 transition-opacity duration-150 cursor-pointer
+                      ${email.is_favorite ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"}`}
+                  >
+                    <span
+                      className={`material-symbols-outlined text-base leading-none
+                        ${email.is_favorite ? "text-yellow-400" : "text-outline hover:text-yellow-400"}`}
+                      style={{ fontVariationSettings: email.is_favorite ? "'FILL' 1" : "'FILL' 0" }}
+                    >
+                      star
+                    </span>
+                  </span>
+                )}
+
+                <span className="text-[0.7rem] text-outline font-medium shrink-0">
                   {timeAgo(email.received_at)}
                 </span>
               </div>
