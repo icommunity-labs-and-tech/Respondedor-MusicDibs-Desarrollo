@@ -14,9 +14,11 @@ export default function InboxPage() {
   const [selectedEmail, setSelectedEmail] = useState<EmailWithDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const supabase = createClient();
 
-  // Ref to access current selectedEmail inside loadEmails without stale closure
   const selectedEmailRef = useRef<EmailWithDraft | null>(null);
   selectedEmailRef.current = selectedEmail;
 
@@ -24,7 +26,7 @@ export default function InboxPage() {
     if (!activeProject) return;
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("emails")
       .select("*, drafts!drafts_email_id_fkey(*)")
       .eq("project_id", activeProject.id)
@@ -32,107 +34,94 @@ export default function InboxPage() {
       .order("received_at", { ascending: false });
 
     if (data) {
-      // Normalize: Supabase may return drafts as array OR single object
-      // (object when using FK hint + unique constraint on email_id)
       const normalized = data.map((email: Record<string, unknown>) => {
         const rawDrafts = email.drafts;
         let draft = null;
         if (Array.isArray(rawDrafts) && rawDrafts.length > 0) {
           draft = rawDrafts[0];
         } else if (rawDrafts && !Array.isArray(rawDrafts)) {
-          draft = rawDrafts; // PostgREST returned a single object
+          draft = rawDrafts;
         }
         return { ...email, drafts: draft };
       }) as EmailWithDraft[];
       setEmails(normalized);
 
-      // Use ref to avoid stale closure — selectedEmail is always current
       const currentSelected = selectedEmailRef.current;
       if (currentSelected) {
         const updated = normalized.find((e) => e.id === currentSelected.id);
-        if (updated) {
-          setSelectedEmail(updated);
-        } else {
-          setSelectedEmail(null);
-        }
+        setSelectedEmail(updated ?? null);
       }
     }
     setLoading(false);
   }, [activeProject, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load emails when project changes
   useEffect(() => {
     loadEmails();
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Real-time subscription for new emails
   useEffect(() => {
     if (!activeProject) return;
-
     const channel = supabase
       .channel("inbox-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "emails",
-          filter: `project_id=eq.${activeProject.id}`,
-        },
-        () => {
-          loadEmails();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "drafts",
-          filter: `project_id=eq.${activeProject.id}`,
-        },
-        () => {
-          loadEmails();
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "emails", filter: `project_id=eq.${activeProject.id}` }, () => loadEmails())
+      .on("postgres_changes", { event: "*", schema: "public", table: "drafts", filter: `project_id=eq.${activeProject.id}` }, () => loadEmails())
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredEmails = search.trim()
-    ? emails.filter(
-        (e) =>
-          e.subject.toLowerCase().includes(search.toLowerCase()) ||
-          e.from_address.toLowerCase().includes(search.toLowerCase()) ||
-          (e.from_name || "").toLowerCase().includes(search.toLowerCase())
+    ? emails.filter((e) =>
+        e.subject.toLowerCase().includes(search.toLowerCase()) ||
+        e.from_address.toLowerCase().includes(search.toLowerCase()) ||
+        (e.from_name || "").toLowerCase().includes(search.toLowerCase())
       )
     : emails;
 
+  // Selection handlers
+  function handleToggleCheck(id: string) {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function handleCheckAll() {
+    const allIds = filteredEmails.map((e) => e.id);
+    const allChecked = allIds.every((id) => checkedIds.has(id));
+    setCheckedIds(allChecked ? new Set() : new Set(allIds));
+  }
+
+  async function handleBulkAction(action: "archive" | "delete") {
+    if (bulkLoading) return;
+    if (action === "delete" && !confirmBulkDelete) {
+      setConfirmBulkDelete(true);
+      return;
+    }
+    setBulkLoading(true);
+    setConfirmBulkDelete(false);
+    try {
+      await fetch("/api/emails/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(checkedIds), action }),
+      });
+      setCheckedIds(new Set());
+      setSelectedEmail(null);
+      loadEmails();
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
   async function handleToggleFavorite(email: EmailWithDraft) {
-    await supabase
-      .from("emails")
-      .update({ is_favorite: !email.is_favorite })
-      .eq("id", email.id);
+    await supabase.from("emails").update({ is_favorite: !email.is_favorite }).eq("id", email.id);
     loadEmails();
   }
 
-  function handleSendSuccess() {
-    setSelectedEmail(null);
-    loadEmails();
-  }
-
-  function handleArchive() {
-    setSelectedEmail(null);
-    loadEmails();
-  }
-
-  function handleDelete() {
-    setSelectedEmail(null);
-    loadEmails();
-  }
+  function handleSendSuccess() { setSelectedEmail(null); loadEmails(); }
+  function handleArchive() { setSelectedEmail(null); loadEmails(); }
+  function handleDelete() { setSelectedEmail(null); loadEmails(); }
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
@@ -149,9 +138,7 @@ export default function InboxPage() {
 
           {/* Search */}
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">
-              search
-            </span>
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
             <input
               type="text"
               value={search}
@@ -164,6 +151,41 @@ export default function InboxPage() {
             />
           </div>
         </div>
+
+        {/* Bulk action bar */}
+        {checkedIds.size > 0 && (
+          <div className="mx-3 mb-2 p-2 rounded-xl bg-surface-container flex items-center gap-2 border border-outline-variant/20">
+            <span className="text-xs font-semibold text-on-surface flex-1">
+              {checkedIds.size} seleccionado{checkedIds.size > 1 ? "s" : ""}
+            </span>
+            <button
+              onClick={() => handleBulkAction("archive")}
+              disabled={bulkLoading}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-base">archive</span>
+              {bulkLoading ? "..." : "Archivar"}
+            </button>
+            <button
+              onClick={() => handleBulkAction("delete")}
+              disabled={bulkLoading}
+              onBlur={() => setConfirmBulkDelete(false)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                confirmBulkDelete ? "text-white bg-error" : "text-error hover:bg-error/10"
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">delete</span>
+              {bulkLoading ? "..." : confirmBulkDelete ? "¿Confirmar?" : "Borrar"}
+            </button>
+            <button
+              onClick={() => { setCheckedIds(new Set()); setConfirmBulkDelete(false); }}
+              className="p-1 text-outline hover:text-on-surface transition-colors"
+              title="Cancelar selección"
+            >
+              <span className="material-symbols-outlined text-base">close</span>
+            </button>
+          </div>
+        )}
 
         {/* Email list */}
         {loading ? (
@@ -182,13 +204,22 @@ export default function InboxPage() {
             selectedId={selectedEmail?.id || null}
             onSelect={setSelectedEmail}
             onToggleFavorite={handleToggleFavorite}
+            checkedIds={checkedIds}
+            onToggleCheck={handleToggleCheck}
+            onCheckAll={handleCheckAll}
           />
         )}
       </div>
 
       {/* Detail panel */}
       {selectedEmail ? (
-        <EmailDetail email={selectedEmail} onSendSuccess={handleSendSuccess} onDraftGenerated={loadEmails} onArchive={handleArchive} onDelete={handleDelete} />
+        <EmailDetail
+          email={selectedEmail}
+          onSendSuccess={handleSendSuccess}
+          onDraftGenerated={loadEmails}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
+        />
       ) : (
         <EmailEmptyState />
       )}
