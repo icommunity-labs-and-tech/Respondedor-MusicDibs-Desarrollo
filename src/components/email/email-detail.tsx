@@ -11,12 +11,15 @@ interface EmailDetailProps {
   onSendSuccess: () => void;
   onDraftGenerated: () => void;
   onArchive: () => void;
+  onDelete: () => void;
 }
 
-export default function EmailDetail({ email, onSendSuccess, onDraftGenerated, onArchive }: EmailDetailProps) {
+export default function EmailDetail({ email, onSendSuccess, onDraftGenerated, onArchive, onDelete }: EmailDetailProps) {
   const [showThread, setShowThread] = useState(true);
   const [thread, setThread] = useState<ThreadMessage[]>([]);
   const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const supabase = createClient();
 
   async function handleArchive() {
@@ -31,6 +34,26 @@ export default function EmailDetail({ email, onSendSuccess, onDraftGenerated, on
       if (res.ok) onArchive();
     } finally {
       setArchiving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (deleting) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    setConfirmDelete(false);
+    try {
+      const res = await fetch("/api/emails/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId: email.id }),
+      });
+      if (res.ok) onDelete();
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -77,12 +100,28 @@ export default function EmailDetail({ email, onSendSuccess, onDraftGenerated, on
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleArchive}
-              disabled={archiving}
+              disabled={archiving || deleting}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
               title="Archivar"
             >
               <span className="material-symbols-outlined text-lg">archive</span>
               <span className="text-xs">{archiving ? "Archivando..." : "Archivar"}</span>
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting || archiving}
+              onBlur={() => setConfirmDelete(false)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                confirmDelete
+                  ? "text-white bg-error hover:bg-error/90"
+                  : "text-error hover:bg-error/10"
+              }`}
+              title="Borrar del servidor"
+            >
+              <span className="material-symbols-outlined text-lg">delete</span>
+              <span className="text-xs">
+                {deleting ? "Borrando..." : confirmDelete ? "¿Confirmar?" : "Borrar"}
+              </span>
             </button>
             <button
               className="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"

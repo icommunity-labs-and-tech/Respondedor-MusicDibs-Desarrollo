@@ -129,6 +129,11 @@ export default function InboxPage() {
     loadEmails();
   }
 
+  function handleDelete() {
+    setSelectedEmail(null);
+    loadEmails();
+  }
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Email list panel */}
@@ -183,7 +188,7 @@ export default function InboxPage() {
 
       {/* Detail panel */}
       {selectedEmail ? (
-        <EmailDetail email={selectedEmail} onSendSuccess={handleSendSuccess} onDraftGenerated={loadEmails} onArchive={handleArchive} />
+        <EmailDetail email={selectedEmail} onSendSuccess={handleSendSuccess} onDraftGenerated={loadEmails} onArchive={handleArchive} onDelete={handleDelete} />
       ) : (
         <EmailEmptyState />
       )}
