@@ -23,12 +23,13 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
   const [sending, setSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [improving, setImproving] = useState(false);
+  const [hasBeenEdited, setHasBeenEdited] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<AIProvider>("claude");
   const supabase = createClient();
 
-  // Load draft content
+  // Load draft content — reset edit flag on email change
   useEffect(() => {
     if (email.drafts) {
       setContent(email.drafts.edited_response);
@@ -36,6 +37,7 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
       setContent("");
     }
     setError(null);
+    setHasBeenEdited(false);
   }, [email.id, email.drafts]);
 
   // Auto-save draft on content change (debounced)
@@ -62,10 +64,6 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
     return () => clearTimeout(timer);
   }, [content, saveDraft, email.drafts]);
 
-  // Check if content has been manually edited vs original AI response
-  const isEdited = email.drafts
-    ? content !== email.drafts.ai_response
-    : false;
 
   // Improve current draft with AI
   async function handleImprove() {
@@ -85,6 +83,7 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
       const data = await res.json();
       setContent(data.improved);
       setLastSaved(new Date());
+      setHasBeenEdited(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -257,7 +256,7 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
       <div className="relative">
         <textarea
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => { setContent(e.target.value); setHasBeenEdited(true); }}
           rows={14}
           className="w-full p-6 bg-surface-container-lowest text-on-surface text-sm leading-relaxed
                      rounded-xl border border-transparent resize-none
@@ -304,7 +303,7 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
             )}
           </button>
 
-          {isEdited && (
+          {hasBeenEdited && (
             <button
               onClick={handleImprove}
               disabled={improving || regenerating}
