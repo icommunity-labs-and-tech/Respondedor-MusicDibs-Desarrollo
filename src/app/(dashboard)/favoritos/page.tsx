@@ -154,6 +154,7 @@ export default function FavoritosPage() {
             onSendSuccess={() => { setSelectedEmail(null); loadEmails(); }}
             onDraftGenerated={loadEmails}
             onArchive={() => { setSelectedEmail(null); loadEmails(); }}
+            onDelete={() => { setSelectedEmail(null); loadEmails(); }}
           />
         )
       ) : (
