@@ -1,6 +1,4 @@
 import nodemailer from "nodemailer";
-import path from "path";
-import fs from "fs";
 
 interface SendEmailParams {
   to: string;
@@ -62,7 +60,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{
   <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
     <tr>
       <td style="padding-right:24px;vertical-align:top;">
-        <img src="cid:musicdibs-logo" alt="MusicDibs" width="120" style="display:block;margin-bottom:8px;" />
+        <img src="https://respondedor.icommunity.io/logo.png" alt="MusicDibs" width="120" style="display:block;margin-bottom:8px;" />
         <p style="margin:0;font-size:9pt;color:#555;font-weight:bold;">The #1 authorship registration platform</p>
       </td>
       <td style="border-left:2px solid #22b8d1;padding-left:20px;vertical-align:top;">
@@ -92,14 +90,6 @@ export async function sendEmail(params: SendEmailParams): Promise<{
       : `Re: ${params.subject}`,
     text: params.text + "\n\n--\nMusicDibs | info@musicdibs.com | musicdibs.com\nC/Valverde 2 (Edif. Telefónica, planta 8), 28004 Madrid, España",
     html: bodyHtml + signature,
-    attachments: [
-      {
-        filename: "logo.png",
-        path: path.join(process.cwd(), "Diseño", "logo.png"),
-        cid: "musicdibs-logo",
-        contentDisposition: "inline",
-      },
-    ],
   };
 
   // Add threading headers if replying to an existing message
