@@ -2,6 +2,12 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const MODEL = "claude-sonnet-4-20250514";
 
+export interface EmailAttachmentForAI {
+  filename: string;
+  contentType: string;
+  base64Data: string;
+}
+
 interface GenerateResponseParams {
   emailSubject: string;
   emailBody: string;
@@ -10,6 +16,7 @@ interface GenerateResponseParams {
   projectContext: string;
   projectName: string;
   replyFromEmail: string;
+  attachments?: EmailAttachmentForAI[];
 }
 
 interface GenerateResponseResult {
@@ -119,16 +126,50 @@ ${params.emailBody}
 ---
 Responde desde: ${params.replyFromEmail}`;
 
+  // Build multimodal content: text first, then attachments
+  const userContent: Anthropic.MessageParam["content"] = [
+    { type: "text", text: userMessage },
+  ];
+
+  if (params.attachments && params.attachments.length > 0) {
+    for (const att of params.attachments) {
+      if (att.contentType === "application/pdf") {
+        userContent.push({
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: att.base64Data,
+          },
+        } as Anthropic.DocumentBlockParam);
+      } else if (att.contentType.startsWith("image/")) {
+        const mediaType = att.contentType as
+          | "image/jpeg"
+          | "image/png"
+          | "image/gif"
+          | "image/webp";
+        userContent.push({
+          type: "image",
+          source: { type: "base64", media_type: mediaType, data: att.base64Data },
+        });
+      }
+    }
+
+    // Append description of attached files at the end of text
+    const attList = params.attachments
+      .map((a) => `- ${a.filename} (${a.contentType})`)
+      .join("\n");
+    userContent[0] = {
+      type: "text",
+      text: userMessage + `\n\nARCHIVOS ADJUNTOS EN ESTE EMAIL:\n${attList}\n(Analiza el contenido visual de las imágenes/PDFs adjuntos para entender mejor la incidencia y responder adecuadamente.)`,
+    };
+  }
+
   const message = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
     system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: userMessage,
-      },
-    ],
+    messages: [{ role: "user", content: userContent }],
   });
 
   // Extract text from response

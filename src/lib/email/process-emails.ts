@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { fetchNewEmails } from "./imap";
+import { fetchNewEmails, RawAttachment } from "./imap";
 
 export interface ProcessResult {
   processed: number;
@@ -90,7 +90,12 @@ export async function processNewEmails(
           if (inserted) {
             results.newEmails++;
 
-            // 4. Trigger AI draft generation
+            // 4. Upload attachments to Supabase Storage
+            if (email.attachments.length > 0) {
+              await uploadAttachments(supabase, inserted.id, email.attachments, results.errors);
+            }
+
+            // 5. Trigger AI draft generation
             try {
               const aiResponse = await fetch(`${origin}/api/ai/generate`, {
                 method: "POST",
@@ -130,4 +135,46 @@ export async function processNewEmails(
   }
 
   return results;
+}
+
+const SUPPORTED_AI_TYPES = new Set([
+  "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "application/pdf",
+]);
+
+async function uploadAttachments(
+  supabase: SupabaseClient,
+  emailId: string,
+  attachments: RawAttachment[],
+  errors: string[]
+): Promise<void> {
+  for (const att of attachments) {
+    if (!SUPPORTED_AI_TYPES.has(att.contentType)) continue; // skip unsupported types
+
+    const safeName = att.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `${emailId}/${safeName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("email-attachments")
+        .upload(storagePath, att.content, {
+          contentType: att.contentType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        errors.push(`Attachment upload failed (${att.filename}): ${uploadError.message}`);
+        continue;
+      }
+
+      await supabase.from("email_attachments").insert({
+        email_id: emailId,
+        filename: att.filename,
+        content_type: att.contentType,
+        storage_path: storagePath,
+        size: att.size,
+      });
+    } catch (err) {
+      errors.push(`Attachment error (${att.filename}): ${err instanceof Error ? err.message : "Unknown"}`);
+    }
+  }
 }

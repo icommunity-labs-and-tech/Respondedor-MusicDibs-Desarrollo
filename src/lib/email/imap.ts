@@ -1,6 +1,13 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 
+export interface RawAttachment {
+  filename: string;
+  contentType: string;
+  content: Buffer;
+  size: number;
+}
+
 export interface RawEmail {
   messageId: string;
   inReplyTo: string | null;
@@ -11,6 +18,7 @@ export interface RawEmail {
   textBody: string | null;
   htmlBody: string | null;
   date: Date;
+  attachments: RawAttachment[];
 }
 
 interface ImapConfig {
@@ -83,6 +91,7 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
           let textBody: string | null = null;
           let htmlBody: string | null = null;
           let inReplyTo: string | null = null;
+          let attachments: RawAttachment[] = [];
 
           try {
             const dl = await client.download(String(seq), undefined, {
@@ -98,6 +107,14 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
               htmlBody = parsed.html || null;
               textBody = parsed.text || null;
               inReplyTo = (parsed.inReplyTo as string | undefined) || null;
+              attachments = (parsed.attachments || [])
+                .filter((a) => a.content && a.contentType)
+                .map((a) => ({
+                  filename: a.filename || `attachment-${Date.now()}`,
+                  contentType: a.contentType,
+                  content: a.content as Buffer,
+                  size: a.size || (a.content as Buffer).length,
+                }));
             }
           } catch {
             textBody = "(No se pudo descargar el contenido)";
@@ -116,6 +133,7 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
             textBody,
             htmlBody,
             date: envelope.date || new Date(),
+            attachments,
           });
         } catch (msgErr) {
           console.error(`[IMAP] Error fetching seq ${seq}:`, msgErr);

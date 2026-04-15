@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { generateEmailResponse } from "@/lib/ai/claude";
+import { generateEmailResponse, EmailAttachmentForAI } from "@/lib/ai/claude";
 import { generateEmailResponseGemini } from "@/lib/ai/gemini";
 import { loadProjectContext } from "@/lib/ai/context-loader";
 
@@ -86,7 +86,36 @@ export async function POST(request: NextRequest) {
     // 2. Load project context: static .md + dynamic Supabase Q&A entries
     const context = await loadProjectContext(project.context_file, project.id);
 
-    // 3. Generate AI response
+    // 3. Fetch and download attachments for multimodal AI
+    const attachmentsForAI: EmailAttachmentForAI[] = [];
+    const { data: attachmentRecords } = await supabase
+      .from("email_attachments")
+      .select("filename, content_type, storage_path")
+      .eq("email_id", emailId);
+
+    if (attachmentRecords && attachmentRecords.length > 0) {
+      for (const rec of attachmentRecords) {
+        try {
+          const { data: fileData, error: dlError } = await supabase.storage
+            .from("email-attachments")
+            .download(rec.storage_path);
+
+          if (dlError || !fileData) continue;
+
+          const arrayBuf = await fileData.arrayBuffer();
+          const base64Data = Buffer.from(arrayBuf).toString("base64");
+          attachmentsForAI.push({
+            filename: rec.filename,
+            contentType: rec.content_type,
+            base64Data,
+          });
+        } catch {
+          // Non-fatal: skip attachment on error
+        }
+      }
+    }
+
+    // 4. Generate AI response
     const emailBody = email.body_text || email.body_html || "(Sin contenido)";
     // Strip HTML tags if we only have HTML body
     const cleanBody = email.body_text
@@ -101,13 +130,14 @@ export async function POST(request: NextRequest) {
       projectContext: context,
       projectName: project.name,
       replyFromEmail: project.email_address,
+      attachments: attachmentsForAI.length > 0 ? attachmentsForAI : undefined,
     };
 
     const result = provider === "gemini"
       ? await generateEmailResponseGemini(aiParams)
       : await generateEmailResponse(aiParams);
 
-    // 4. Save draft to database (upsert — regeneration overwrites existing draft)
+    // 5. Save draft to database (upsert — regeneration overwrites existing draft)
     const { data: draft, error: draftError } = await supabase
       .from("drafts")
       .upsert(
@@ -131,7 +161,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Update email status to draft_ready
+    // 6. Update email status to draft_ready
     await supabase
       .from("emails")
       .update({ status: "draft_ready" })
