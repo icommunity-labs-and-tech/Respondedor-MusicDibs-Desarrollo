@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { EmailWithDraft, ThreadMessage } from "@/types/database";
 import ThreadView from "./thread-view";
+import { loadEmailThread } from "@/lib/email/thread";
 
 interface SentDetailProps {
   email: EmailWithDraft;
@@ -35,29 +36,12 @@ export default function SentDetail({ email, onArchive }: SentDetailProps) {
   }, [email.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadThread() {
-    const normalizedSubject = email.subject.replace(/^(Re|RE|Fwd|FWD):\s*/g, "").trim();
-
-    const { data: relatedEmails } = await supabase
-      .from("emails")
-      .select("*, drafts!drafts_email_id_fkey(*)")
-      .eq("project_id", email.project_id)
-      .ilike("subject", `%${normalizedSubject}%`)
-      .order("received_at", { ascending: true });
-
-    if (!relatedEmails) return;
-
-    const messages: ThreadMessage[] = relatedEmails.flatMap((e) => {
-      const draft = Array.isArray(e.drafts)
-        ? e.drafts[0] ?? null
-        : e.drafts ?? null;
-
-      const received: ThreadMessage = { type: "received", email: e };
-      if (e.status === "sent" && draft) {
-        return [received, { type: "sent", email: e, draft } as ThreadMessage];
-      }
-      return [received];
+    const messages = await loadEmailThread(supabase, {
+      id: email.id,
+      project_id: email.project_id,
+      message_id: email.message_id ?? null,
+      in_reply_to: email.in_reply_to ?? null,
     });
-
     setThread(messages);
   }
 
