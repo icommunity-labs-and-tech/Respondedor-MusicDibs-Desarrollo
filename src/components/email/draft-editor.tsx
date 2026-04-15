@@ -22,6 +22,7 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [improving, setImproving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<AIProvider>("claude");
@@ -60,6 +61,36 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
     const timer = setTimeout(() => saveDraft(content), 1500);
     return () => clearTimeout(timer);
   }, [content, saveDraft, email.drafts]);
+
+  // Check if content has been manually edited vs original AI response
+  const isEdited = email.drafts
+    ? content !== email.drafts.ai_response
+    : false;
+
+  // Improve current draft with AI
+  async function handleImprove() {
+    if (!content.trim()) return;
+    setImproving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/ai/improve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailId: email.id, currentContent: content }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.details || data.error || "Error al mejorar");
+      }
+      const data = await res.json();
+      setContent(data.improved);
+      setLastSaved(new Date());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setImproving(false);
+    }
+  }
 
   // Regenerate AI response
   async function handleRegenerate() {
@@ -252,7 +283,7 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
         <div className="flex items-center gap-2">
           <button
             onClick={handleRegenerate}
-            disabled={regenerating}
+            disabled={regenerating || improving}
             className="px-4 py-2 text-on-surface-variant text-sm font-semibold rounded-xl
                        border border-outline-variant/20 hover:bg-surface-container-low
                        transition-all disabled:opacity-60 flex items-center gap-2"
@@ -267,13 +298,36 @@ export default function DraftEditor({ email, onSendSuccess, onDraftGenerated }: 
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-base">
-                  refresh
-                </span>
+                <span className="material-symbols-outlined text-base">refresh</span>
                 Regenerar
               </>
             )}
           </button>
+
+          {isEdited && (
+            <button
+              onClick={handleImprove}
+              disabled={improving || regenerating}
+              className="px-4 py-2 text-primary text-sm font-semibold rounded-xl
+                         border border-primary/20 hover:bg-primary/5
+                         transition-all disabled:opacity-60 flex items-center gap-2"
+            >
+              {improving ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Mejorando...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-base">auto_fix_high</span>
+                  Mejorar
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <button
