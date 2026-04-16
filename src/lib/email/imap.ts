@@ -66,22 +66,27 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
     const lock = await client.getMailboxLock("INBOX");
 
     try {
-      // Get sequence numbers of unseen messages (no uid option = seq nums)
-      const searchResult = await client.search({ seen: false });
-      const seqNums: number[] = searchResult === false ? [] : searchResult;
+      // Search by UID range so we never miss emails marked as "seen" in other clients.
+      // UID search returns UIDs (not seq nums), so we use uid:true in fetch calls.
+      const uidFrom = lastUid && lastUid > 0 ? lastUid + 1 : 1;
+      const searchResult = await client.search(
+        { uid: `${uidFrom}:*` },
+        { uid: true }
+      );
+      const uids: number[] = searchResult === false ? [] : searchResult;
 
-      for (const seq of seqNums) {
+      for (const uid of uids) {
         try {
-          // Fetch envelope + uid for this single message
-          const message = await client.fetchOne(String(seq), {
+          // Fetch envelope by UID
+          const message = await client.fetchOne(String(uid), {
             uid: true,
             envelope: true,
-          });
+          }, { uid: true });
 
           if (!message || !message.envelope) continue;
 
-          // Skip if already stored (by uid)
-          if (lastUid && lastUid > 0 && message.uid <= lastUid) continue;
+          // Safety check: UID must be >= uidFrom (IMAP wildcard * can return the last msg even if < uidFrom)
+          if (message.uid < uidFrom) continue;
 
           const envelope = message.envelope;
           const messageId =
@@ -94,8 +99,8 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
           let attachments: RawAttachment[] = [];
 
           try {
-            const dl = await client.download(String(seq), undefined, {
-              uid: false,
+            const dl = await client.download(String(uid), undefined, {
+              uid: true,
             });
             if (dl && dl.content) {
               const chunks: Buffer[] = [];
