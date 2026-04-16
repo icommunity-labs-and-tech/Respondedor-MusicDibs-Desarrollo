@@ -141,7 +141,7 @@ export async function fetchNewEmails(lastUid?: number): Promise<RawEmail[]> {
             attachments,
           });
         } catch (msgErr) {
-          console.error(`[IMAP] Error fetching seq ${seq}:`, msgErr);
+          console.error(`[IMAP] Error fetching uid ${uid}:`, msgErr);
         }
       }
     } finally {
