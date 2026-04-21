@@ -91,6 +91,47 @@ Devuelve el borrador mejorado:`;
 }
 
 /**
+ * Detects the real image media type from base64 data by inspecting magic bytes.
+ * Returns null for unsupported formats.
+ */
+function detectImageMediaType(
+  base64Data: string
+): "image/jpeg" | "image/png" | "image/gif" | "image/webp" | null {
+  try {
+    const bytes = Buffer.from(base64Data.slice(0, 16), "base64");
+    // JPEG: FF D8 FF
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
+      return "image/jpeg";
+    // PNG: 89 50 4E 47
+    if (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    )
+      return "image/png";
+    // GIF: 47 49 46
+    if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46)
+      return "image/gif";
+    // WebP: 52 49 46 46 ... 57 45 42 50
+    if (
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50
+    )
+      return "image/webp";
+  } catch {
+    // ignore, fall through to null
+  }
+  return null;
+}
+
+/**
  * Generates an AI email response using Claude, informed by the project context.
  */
 export async function generateEmailResponse(
@@ -143,11 +184,8 @@ Responde desde: ${params.replyFromEmail}`;
           },
         } as Anthropic.DocumentBlockParam);
       } else if (att.contentType.startsWith("image/")) {
-        const mediaType = att.contentType as
-          | "image/jpeg"
-          | "image/png"
-          | "image/gif"
-          | "image/webp";
+        const mediaType = detectImageMediaType(att.base64Data);
+        if (!mediaType) continue; // skip unsupported image formats
         userContent.push({
           type: "image",
           source: { type: "base64", media_type: mediaType, data: att.base64Data },
